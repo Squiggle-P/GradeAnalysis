@@ -16,3 +16,10 @@ has been stripped from the dataset due to filtering or categorizing.
     out/in.
     
 Neat idea
+
+
+
+Notes
+
+    MatPlotLib has a functionality for LassoSelection - definitely necessary for displaying everything
+    Pandas has the best time-series data, but I think there needs to be a conversion to let MatPlotLib play with it.
