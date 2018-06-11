@@ -23,3 +23,17 @@ Notes
 
     MatPlotLib has a functionality for LassoSelection - definitely necessary for displaying everything
     Pandas has the best time-series data, but I think there needs to be a conversion to let MatPlotLib play with it..
+
+
+    When plotting a DataFrame, plotting normally w/ deleted or spliced-out data will give a single-line
+    connector. Plotting w/ the argument "x=df.index.astype(str)" will remove that portion of the X-Axis
+    (but also remove the axis titling - need to specify it again w/ PLT)
+
+
+
+
+
+
+
+
+
