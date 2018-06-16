@@ -1,6 +1,6 @@
 
 """ Dependancies """
-import numpy as np, pandas as pd, matplotlib.pyplot as plt, pkgutil as pkg, timeit
+import numpy as np, pandas as pd, matplotlib.pyplot as plt, tkinter as tk #pkgutils as pkg, timeit
 
 # Configuration Stuff - To be red from file / GUI
 
@@ -30,7 +30,7 @@ I'd like users to be able to write their own conditionals but that's going to re
 
 # Build Pandas Arrays
 print("Reading BW CSV")
-RawDF = pd.read_csv(CSVFileName, sep=";", header=0, index_col = 0)
+RawDF = pd.read_csv(CSVFileName, sep=";", header=0, index_col=0)
 
 print("Converting DateTimes")
 # OK Woah - getting the formatting right increases the speed by almost %100,000 - that's not an exaggeration.
@@ -49,7 +49,7 @@ RawDF['H'] = RawDF.G.shift(1)
 def SBFlag(row):
     if row['G'] > 0 and row['H'] == 0:
         val = "Start"
-    elif row['G'] == 0 and row['H'] >0:
+    elif row['G'] == 0 and row['H'] > 0:
         val = "End"
     # elif row['G'] > 0 and row['H'] > 0:
     #     val = "Mid"
@@ -117,3 +117,34 @@ Temp = []
 #     b, g, r, c, m, y, k, w
 #     color = 'b' if (dataframe['A'] == 5505) else 'g'
 #     ax.plot(dataframe.index, dataframe.B, c=color, linewidth=2)
+
+
+# Build a GUI - storage code
+
+root = tk.Tk()  # This is the main parent attribute for the GUI
+HeaderLabel = tk.Label(root, text="Limit Calculations") # This is a label
+HeaderLabel.pack()      # Size yourself w/ the given text
+
+
+class App:
+    def __init__(self, master):
+        frame = tk.Frame(master)    # Create a container
+        frame.pack(side='top')      # Put the container above(? Not above) <strike>the text earlier</strike>
+
+        self.QuitButton = tk.Button(
+            frame, text="QUIT", fg="blue", bg="red", command=frame.quit
+        )
+        self.QuitButton.pack(side='right')
+
+        self.HiButton = tk.Button(
+            frame, text="Hello", command=self.say_hi
+        )
+        self.HiButton.pack(side='bottom')
+
+    def say_hi(self):
+        print("hi there, everyone!")
+
+app = App(root)
+app2 = App(root)
+root.mainloop()         # Show yourself until destroyed
+root.destroy()
