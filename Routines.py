@@ -5,20 +5,23 @@ import numpy as np, pandas as pd, matplotlib.pyplot as plt, tkinter as tk #pkgut
 # Configuration Stuff - To be red from file / GUI
 
 CSVFileName = "PM1 KPI Determinants.csv"
-TagCoding = {'1GRADECODE':'A',
-             '1BWSCNAV':'B',
-             '1CWSCNAV':'C',
-             '1CWTGT':'D',
-             '1MACHSPD':'E',
-             '1MSTSCAV':'F',
-             '1SBFLG':'G'
-             }
-SB_RemovePrior = pd.to_timedelta('-2m')
-SB_RemoveAfter = pd.to_timedelta('15m')
+# TagCoding = {'1GRADECODE':'A',
+#              '1BWSCNAV':'B',
+#              '1CWSCNAV':'C',
+#              '1CWTGT':'D',
+#              '1MACHSPD':'E',
+#              '1MSTSCAV':'F',
+#              '1SBFLG':'G'
+#              }
+# SB_RemovePrior = pd.to_timedelta('-2m')
+# SB_RemoveAfter = pd.to_timedelta('15m')
 
 # User-Defined Rules:
 """
 I'd like users to be able to write their own conditionals but that's going to require a lot more effort.
+
+    Hey buddy screw you let's do it.
+
 """
 # Remove data that is less than 2 minutes prior to a sheet break
 # Remove data that is during a sheetbreak
@@ -37,78 +40,115 @@ print("Converting DateTimes")
 RawDF.index = pd.to_datetime(RawDF.index, format="%m/%d/%Y %I:%M:%S %p")
 print("Converted")
 
-# Need to sanitize headers here, as items starting w/ numbers are a problem
-ColumnRenameList = [TagCoding[item] for item in RawDF.columns.tolist()]
-RawDF.columns = ColumnRenameList
 
-print("Process SheetBreaks")
-# TimeShift by 1 interval
-RawDF['H'] = RawDF.G.shift(1)
+def ValueEquals(ser,val,inverse=False,timeshift=False,td_pre='0m',td_post='0m'):
+    """
+    Takes series (ideally column of DataFrame) and returns a 2xN list of date-times during which values in the series equal a single, specified value.
+
+    :param ser:         series input to be evaluated
+    :param val:         value to evaluate series true/false
+    :param inverse:     boolean, if True return times ser.row <> val. Else return ser.row == val
+    :param timeshift:   boolean, if True add/subtract time to final timeranges
+    :param td_pre:      string to flag values earlier than event-start
+    :param td_post:     string to flag values later than event-end
+    :return:            TimeList of
+    """
+
+    def EqualsFlag(row,col1,col2,value):
+        if row[col1] == value and row[col2] != value:
+            marker = "Start"
+        elif row[col1] != value and row[col2] == value:
+            marker = "End"
+        else:
+            marker = np.nan
+        return marker
+
+    def NotEqualsFlag(row,col1,col2,value):
+        if row[col1] != value and row[col2] == value:
+            marker = "Start"
+        elif row[col1] == value and row[col2] != value:
+            marker = "End"
+        else:
+            marker = np.nan
+        return marker
 
 
-def SBFlag(row):
-    if row['G'] > 0 and row['H'] == 0:
-        val = "Start"
-    elif row['G'] == 0 and row['H'] > 0:
-        val = "End"
-    # elif row['G'] > 0 and row['H'] > 0:
-    #     val = "Mid"
+    TimeList = []
+    header = ser.name
+    frame = ser.to_frame()
+# Identify start/end points in a row format rather than a column format
+    frame[header+'shift'] = frame[header].shift(1)
+
+# Run comparison routines
+    if not inverse:
+        frame[header+'flags'] = frame.apply(EqualsFlag, axis=1, args=(header,header+'shift',val))
     else:
-        val = np.nan
-    return val
+        frame[header + 'flags'] = frame.apply(NotEqualsFlag, axis=1, args=(header, header + 'shift', val))
+    StartList = frame.index[frame[header+'flags']=="Start"]
+    EndList = frame.index[frame[header+'flags']=="End"]
 
-RawDF['SB_Flag'] = RawDF.apply(SBFlag,axis=1)
+    ## Validate lists to get pairs
+    # If timestamps are uneven lengths, a condition was probably split
+    # Need to chop one off.
 
-# Save the Time Indices for SBs
-SB_StartList = RawDF.index[RawDF.SB_Flag=="Start"]
-SB_EndList = RawDF.index[RawDF.SB_Flag == "End"]
+    if not len(StartList) == len(EndList):
 
-## Validate lists to get pairs
-# If timestamps are uneven lengths, a sheetbreak was probably split
-# Need to chop one off.
-if not len(SB_StartList) == len(SB_EndList):
-    if not SB_StartList[0] < SB_EndList[0]:
-        SB_StartList = SB_StartList[1:]
-    elif not SB_EndList[len(SB_EndList)] > SB_StartList[len(SB_StartList)]:
-        SB_EndList = SB_EndList[:-1]
-# If timestamps were uneven but it still isn't right, two SBs were probably split.
-# How unlucky.
-else:
-    if not (SB_StartList[0] < SB_EndList[0]) and not (SB_EndList[len(SB_EndList)] > SB_StartList[len(SB_StartList)]):
-        SB_StartList = SB_StartList[1:].tolist()
-        SB_EndList = SB_EndList[:-1].tolist()
+        if not StartList[0] < EndList[0]:
+            EndList = EndList[1:]
+        elif not EndList[len(EndList)-1] > StartList[len(StartList)-1]:
+            for item in StartList:
+                print (item)
+            StartList = StartList[:len(StartList)-1]
+            for item in StartList:
+                print (item)
+    # If timestamps were uneven but it still isn't right, two conditions were probably split.
+    # How unlucky.
+    else:
+        if  (StartList[0] > EndList[0]) and (EndList[len(EndList)-1] < StartList[len(StartList)]-1):
+            EndList = EndList[1:]
+            StartList = StartList[:len(StartList)-1]
 
-SB_TimesList = []
-for index in range(len(SB_StartList)):
-    SB_TimesList.append((SB_StartList[index],SB_EndList[index]))
+    # print(len(StartList),len(EndList))
+    for index in range(len(StartList)):
+        # print(index, StartList[index],EndList[index])
+        TimeList.append((StartList[index], EndList[index]))
 
-# Apply time shifts to encapsulate more data
-print("Build Sheetbreak Lists")
-SB_ExtendedTimesList = []
-for index in range(len(SB_TimesList)):
-    new_start = SB_TimesList[index][0] + SB_RemovePrior
-    new_end = SB_TimesList[index][1] + SB_RemoveAfter
-    SB_ExtendedTimesList.append([new_start,new_end])
+    # Apply time shifts to encapsulate more data
+    if timeshift:
+        ExtendedTimesList = []
+        td_pre = pd.to_timedelta(td_pre)
+        td_post = pd.to_timedelta(td_post)
+        for index in range(len(TimeList)):
+            new_start = TimeList[index][0] + td_pre
+            new_end = TimeList[index][1] + td_post
+            ExtendedTimesList.append([new_start, new_end])
 
-# print(SB_TimesList[0:2])
-# print(SB_ExtendedTimesList[0:2])
+        return ExtendedTimesList
+    else:
+        return TimeList
 
+## Test Site
 
-RawDF['SB_Removal'] = 0
-for item in SB_ExtendedTimesList:
-    RawDF.SB_Removal[item[0]:item[1]] = 1
+print ("Processing Grade")
+GradeException = ValueEquals(RawDF['1GRADECODE'],5505,True,True,'-2H','30m')
+print ("Grades Done")
+print ("Processing SB")
+SBException = ValueEquals(RawDF['1SBFLG'],1,False,True,'-2m','15m')
+print ("SB Done")
 
 
 plt.figure()
-plt.plot(RawDF.B)
-for item in SB_ExtendedTimesList:
+plt.plot(RawDF['1BWSCNAV'])
+for item in SBException:
     plt.axvspan(item[0],item[1],color='red',alpha=0.3)
+for item in GradeException:
+    plt.axvspan(item[0],item[1],color='blue',alpha=0.3)
 # plt.plot(RawDF.G)
 # plt.plot(RawDF.SB_Removal)
 plt.show()
 
 #List of Run Grades:
-Temp = RawDF.groupby('A').A.count()
+Temp = RawDF.groupby('1GRADECODE')['1GRADECODE'].count()
 GradeList = Temp[Temp>10].sort_values(ascending = False)
 Temp = []
 #
