@@ -2,7 +2,7 @@
 """ Dependancies """
 import numpy as np, pandas as pd, matplotlib.pyplot as plt, tkinter as tk #pkgutils as pkg, timeit
 
-# Configuration Stuff - To be red from file / GUI
+# Configuration Stuff - To be read from file / GUI
 
 CSVFileName = "PM1 KPI Determinants.csv"
 # TagCoding = {'1GRADECODE':'A',
